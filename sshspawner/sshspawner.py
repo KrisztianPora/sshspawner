@@ -38,6 +38,10 @@ class SSHSpawner(Spawner):
             help="SSH port for remote connection",
             config=True) 
 
+    username = Unicode("root",
+            help="Username to use for SSH connection. NOT JupyterHub username!",
+            config=True)        
+
     ssh_command = Unicode("/usr/bin/ssh",
             help="Actual SSH command",
             config=True)
@@ -65,10 +69,7 @@ class SSHSpawner(Spawner):
             config=True)
 
     ssh_keyfile = Unicode("~/.ssh/id_rsa",
-            help=dedent("""Key file used to authenticate hub with remote host.
-
-            `~` will be expanded to the user's home directory and `{username}`
-            will be expanded to the user's username"""),
+            help=dedent("""Key file used to authenticate hub with remote host."""),
             config=True)
 
     pid = Integer(0,
@@ -111,8 +112,7 @@ class SSHSpawner(Spawner):
     async def start(self):
         """Start single-user server on remote host."""
 
-        username = self.user.name
-        kf = self.ssh_keyfile.format(username=username)
+        kf = self.ssh_keyfile
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
@@ -138,13 +138,13 @@ class SSHSpawner(Spawner):
                     )
 
                 # create resource path dir in user's home on remote
-                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=self.username,client_keys=[(k,c)],known_hosts=None) as conn:
                     mkdir_cmd = "mkdir -p {path} 2>/dev/null".format(path=self.resource_path)
                     result = await conn.run(mkdir_cmd)
 
                 # copy files
                 files = [os.path.join(local_resource_path, f) for f in os.listdir(local_resource_path)]
-                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=self.username,client_keys=[(k,c)],known_hosts=None) as conn:
                     await asyncssh.scp(files, (conn, self.resource_path))
 
         if self.hub_api_url != "":
@@ -194,10 +194,6 @@ class SSHSpawner(Spawner):
         alive = await self.remote_signal(15)
         self.clear_state()
 
-    def get_remote_user(self, username):
-        """Map JupyterHub username to remote username."""
-        return username
-
     def choose_remote_host(self):
         """
         Given the list of possible nodes from which to choose, make the choice of which should be the remote host.
@@ -219,14 +215,13 @@ class SSHSpawner(Spawner):
         
         If this fails for some reason return `None`."""
 
-        username = self.get_remote_user(self.user.name)
-        kf = self.ssh_keyfile.format(username=username)
+        kf = self.ssh_keyfile
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
 
         # this needs to be done against remote_host, first time we're calling up
-        async with asyncssh.connect(self.remote_host, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_host, self.ssh_port, username=self.username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run(self.remote_port_command)
             stdout = result.stdout
             stderr = result.stderr
@@ -251,8 +246,7 @@ class SSHSpawner(Spawner):
         env['JUPYTERHUB_API_URL'] = self.hub_api_url
         if self.path:
             env['PATH'] = self.path
-        username = self.get_remote_user(self.user.name)
-        kf = self.ssh_keyfile.format(username=username)
+        kf = self.ssh_keyfile
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
@@ -278,7 +272,7 @@ class SSHSpawner(Spawner):
             with open(run_script, "r") as f:
                 self.log.debug(run_script + " was written as:\n" + f.read())
 
-        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=self.username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run("bash -s", stdin=run_script)
             stdout = result.stdout
             stderr = result.stderr
@@ -295,15 +289,14 @@ class SSHSpawner(Spawner):
     async def remote_signal(self, sig):
         """Signal on the remote host."""
 
-        username = self.get_remote_user(self.user.name)
-        kf = self.ssh_keyfile.format(username=username)
+        kf = self.ssh_keyfile.format
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
 
         command = "kill -s %s %d < /dev/null"  % (sig, self.pid)
 
-        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=self.username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run(command)
             stdout = result.stdout
             stderr = result.stderr
