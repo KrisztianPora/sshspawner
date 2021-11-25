@@ -30,9 +30,13 @@ class SSHSpawner(Spawner):
     remote_ip = Unicode("remote_ip",
             help="IP on remote side")
 
-    remote_port = Unicode("22",
-            help="SSH remote port number",
+    remote_port = Unicode("8888",
+            help="Remote port number",
             config=True)
+
+    ssh_port = Unicode("22",
+            help="SSH port for remote connection",
+            config=True) 
 
     ssh_command = Unicode("/usr/bin/ssh",
             help="Actual SSH command",
@@ -134,13 +138,13 @@ class SSHSpawner(Spawner):
                     )
 
                 # create resource path dir in user's home on remote
-                async with asyncssh.connect(self.remote_ip, port=12345, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
                     mkdir_cmd = "mkdir -p {path} 2>/dev/null".format(path=self.resource_path)
                     result = await conn.run(mkdir_cmd)
 
                 # copy files
                 files = [os.path.join(local_resource_path, f) for f in os.listdir(local_resource_path)]
-                async with asyncssh.connect(self.remote_ip, port=12345, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+                async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
                     await asyncssh.scp(files, (conn, self.resource_path))
 
         if self.hub_api_url != "":
@@ -222,7 +226,7 @@ class SSHSpawner(Spawner):
         c = asyncssh.read_certificate(cf)
 
         # this needs to be done against remote_host, first time we're calling up
-        async with asyncssh.connect(self.remote_host, port=12345, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_host, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run(self.remote_port_command)
             stdout = result.stdout
             stderr = result.stderr
@@ -274,7 +278,7 @@ class SSHSpawner(Spawner):
             with open(run_script, "r") as f:
                 self.log.debug(run_script + " was written as:\n" + f.read())
 
-        async with asyncssh.connect(self.remote_ip, port=12345, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run("bash -s", stdin=run_script)
             stdout = result.stdout
             stderr = result.stderr
@@ -299,7 +303,7 @@ class SSHSpawner(Spawner):
 
         command = "kill -s %s %d < /dev/null"  % (sig, self.pid)
 
-        async with asyncssh.connect(self.remote_ip, port=12345, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
+        async with asyncssh.connect(self.remote_ip, self.ssh_port, username=username,client_keys=[(k,c)],known_hosts=None) as conn:
             result = await conn.run(command)
             stdout = result.stdout
             stderr = result.stderr
