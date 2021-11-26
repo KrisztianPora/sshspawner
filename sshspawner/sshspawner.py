@@ -289,7 +289,7 @@ class SSHSpawner(Spawner):
     async def remote_signal(self, sig):
         """Signal on the remote host."""
 
-        kf = self.ssh_keyfile.format
+        kf = self.ssh_keyfile
         cf = kf + "-cert.pub"
         k = asyncssh.read_private_key(kf)
         c = asyncssh.read_certificate(cf)
