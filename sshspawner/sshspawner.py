@@ -244,6 +244,11 @@ class SSHSpawner(Spawner):
 
         env = super(SSHSpawner, self).get_env()
         env['JUPYTERHUB_API_URL'] = self.hub_api_url
+        
+        //bug
+        env['JUPYTERHUB_COOKIE_OPTIONS'] = ""
+        env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = self.user.url + self.name + oauth_callback
+        
         if self.path:
             env['PATH'] = self.path
         kf = self.ssh_keyfile
