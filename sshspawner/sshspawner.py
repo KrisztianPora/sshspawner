@@ -247,8 +247,8 @@ class SSHSpawner(Spawner):
         
         #bug
         env['JUPYTERHUB_COOKIE_OPTIONS'] = ""
-        env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = self.user.url + "/" + self.name + "oauth_callback"
-        env['JUPYTERHUB_ACTIVITY_URL'] = self.hub_api_url + "/users/" + self.name + "/activity"
+        env['JUPYTERHUB_OAUTH_CALLBACK_URL'] = self.user.url + "oauth_callback"
+        env['JUPYTERHUB_ACTIVITY_URL'] = self.hub_api_url + "/users/" + self.user.name + "/" + "activity"
         
         if self.path:
             env['PATH'] = self.path
